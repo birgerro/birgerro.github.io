@@ -1,0 +1,87 @@
+<html>
+<head>
+	<title>Half Circle Skirt Calculator</title>
+</head>
+<body onload="update_canvas()">
+
+<div>
+<form oninput="update_canvas()">
+Width of fabric: <input type="range" id="width" min="40" max="320" step="5" value="150" oninput="show_range.value=this.value" /><output name="show_range">150</output>
+<br />
+Number of half circles: <input type="range" id="halves" min="1" max="8" step="1" value="3" oninput="show_halves.value=this.value" /><output name="show_halves">3</output>
+<br />
+Radius of half circles: <input type="range" id="radius" min="40" max="180" step="5" value="95" oninput="show_radius.value=this.value" /><output name="show_radius">95</output>
+</form>
+
+<p>Fabric requirement: <span id="result"></span></p>
+
+<button onclick="update_canvas()">Recalculate</button>
+</div>
+
+<canvas id="canvas" />
+
+<script>
+
+var canvas=document.getElementById("canvas");
+var context=canvas.getContext("2d");
+
+function update_canvas(){
+	context.setTransform(1,0,0,1,0,0);
+	context.clearRect(0,0,canvas.width,canvas.height);
+	var width  = Number(document.getElementById("width").value);
+	var halves = Number(document.getElementById("halves").value);
+	var radius = Number(document.getElementById("radius").value);
+
+	if (radius > width){
+		canvas.width = 800;
+		context.font = "50px sans-serif";
+		context.textAlign = "center";
+		context.fillStyle = "red";
+		context.fillText("Radius is larger then fabric width!",canvas.width/2,canvas.height/2);
+		document.getElementById("result").innerHTML = "";
+		return;
+	}
+
+	var x1 = radius;
+	var delta_x = Math.sqrt(4*radius*radius-width*width);
+	if (isNaN(delta_x)){
+		delta_x = 0;
+	}
+	var x2 = x1 + delta_x;
+	if (delta_x < radius){
+		delta_x = radius;
+	}
+	if (halves%2 == 1){
+		// odd number of halves
+		length = x1 + Math.floor((halves-1)/2)*2*delta_x + radius;
+	} else {
+		// even number of halves
+		length = x2 + Math.floor((halves-1)/2)*2*delta_x + radius;
+	}
+
+	canvas.width = length + 100;
+	canvas.height = width + 100;
+	document.getElementById("result").innerHTML = Math.ceil(length/10)*10;
+	
+	context.strokeRect(50,50,length,width);
+	context.translate(50,50);
+	
+	for (i=0; i < halves; i++){
+		y = (i%2) * width;
+		x = ((i%2) ? x2 : x1) + Math.floor(i/2)*2*delta_x;
+		context.beginPath();
+		context.arc(x,y,radius,0,Math.PI,(i%2));
+		context.stroke();
+	}
+
+	context.textAlign = "center";
+	context.fillText("Length: " + length.toFixed(1), length/2, -10);
+	context.fillText("Radius: " + radius, radius/2, 15);
+	context.rotate(-Math.PI/2);
+	context.fillText("Width: " + width.toFixed(1), -width/2, -10);
+}
+
+</script> 
+
+</body>
+</html>
