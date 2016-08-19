@@ -1,0 +1,326 @@
+<html>
+<!-- Version 1 (for IE) -->
+  <title>Marker generator for Malifaux2E</title>
+
+<script>
+function update_svg(){
+	document.getElementById("svg_upper_text").innerHTML = document.getElementById("upper_text_input").value;
+	document.getElementById("svg_lower_text").innerHTML = document.getElementById("lower_text_input").value;
+	document.getElementById("svg_rim").setAttribute("fill", "url(#"+document.getElementById("faction_input").value+")");
+	if (window.image_url){
+		document.getElementById("svg_image").setAttribute("xlink:href",window.image_url);
+	}
+	document.getElementById("page").setAttribute("src","data:image/svg+xml;charset=UTF-8,"+escape(make_sheet_xml().replace("{WIDTH}",2*190).replace("{HEIGHT}",2*270)));
+}
+function load_image(){
+	var file = document.getElementById("file_input").files[0];
+	if (file){
+		var reader = new FileReader();
+		reader.onload = function(event){
+			window.image_url = event.target.result;
+			update_svg();
+		}
+		reader.readAsDataURL(file);
+	}
+}
+var marker_list = [];
+var image_list  = [];
+var image_ids   = [];
+function add_marker(){
+	if (marker_list.length >= 35){
+		display_message("Buffer full.<br />Open full sheet, then reload page to empty buffer.");
+		return;
+	}
+	upper_text = document.getElementById("upper_text_input").value;
+	lower_text = document.getElementById("lower_text_input").value;
+	marker = MARKER_TEMPLATE.replace("{UPPER_TEXT}",upper_text).replace("{LOWER_TEXT}",lower_text);
+	marker = marker.replace("{RIM_GRADIENT}",document.getElementById("faction_input").value);
+	if (document.getElementById("file_input").files[0]){
+		image_id = document.getElementById("file_input").files[0].name.replace(".","_");
+	} else {
+		image_id = "default_image";
+	}
+	marker_list.push(marker.replace("{IMAGE_ID}",image_id));
+	if (image_ids.indexOf(image_id) == -1){
+		image = IMAGE_TEMPLATE.replace("{IMAGE_ID}",image_id).replace("{IMAGE_URL}",window.image_url);
+		image_list.push(image);
+		image_ids.push(image_id);
+	}
+	update_svg();
+}
+function make_sheet_xml(){
+	result = HEAD_TEMPLATE;
+	for (i = 0; i < marker_list.length; i++){
+		marker = marker_list[i];
+		row = Math.floor(i/5);
+		col = i % 5;
+		result += '<g transform="translate(' + (250+350*col) + ',' + (250+350*row) + ')">\n' + marker + '</g>';
+	}
+	images = "";
+	for (i = 0; i < image_list.length; i++){
+		images += image_list[i];
+	}
+	result += TAIL_TEMPLATE.replace("{IMAGES}",images);
+	return result;
+}
+function open_svg(){
+	var new_window = window.open();
+	new_window.document.open('image/svg+xml;charset=UTF-8');
+	new_window.document.write(make_sheet_xml().replace("{WIDTH}","190mm").replace("{HEIGHT}","270mm"));
+	new_window.document.close();
+}
+function display_message(message){
+	document.getElementById("message_field").innerHTML = message;
+}
+</script>
+<body onload="update_svg()">
+
+<div style="display:inline-block;vertical-align:top;">
+<form id="input_form" onchange="update_svg()">
+Upper text:
+<input type="string" id="upper_text_input" value="SCHEME MARKER" />
+<br />
+
+Lower text:
+<input type="string" id="lower_text_input" value="SCHEME MARKER" />
+<br />
+
+Faction:
+<select id="faction_input">
+  <option value="guild">Guild</option>
+  <option value="resurrectionists">Resurrectionists</option>
+  <option value="arcanists">Arcanists</option>
+  <option value="neverborn">Neverborn</option>
+  <option value="outcasts">Outcasts</option>
+  <option value="ten_thunders">Ten Thunders</option>
+  <option value="gremlins">Gremlins</option>
+</select>
+<br />
+
+Image file:
+<input type="file" id="file_input" onchange="load_image()" />
+<br />
+</form>
+
+<button onclick="add_marker()">Add to sheet</button>
+<button onclick="open_svg()">Open full sheet</button>
+
+<p id="message_field" style="color:red;" />
+</div>
+
+<div style="display:inline-block;vertical-align:top;">
+Preview of current marker:<br />
+<svg id="svg_display"
+     width="50mm" height="50mm" viewBox="0 0 500 500"
+     xmlns="http://www.w3.org/2000/svg" version="1.1"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+
+<style>
+text {
+	font-family: serif;
+	font-size: 24px;
+	font-weight: bold;
+	text-anchor: middle;
+}
+text.upper {
+}
+text.lower {
+	letter-spacing: 0.15em;
+}
+</style>
+
+<defs>
+  <path id="upper_path" fill="none" stroke="none" d="M-150,0 m30,0 a120,120 0 0 1 240,0" />
+  <path id="lower_path" fill="none" stroke="none" d="M-150,0 a150,150 0 0 0 300,0" />
+</defs>
+
+<g transform="translate(250,250)">
+
+  <!-- Colored rim -->
+  <circle id="svg_rim" cx="0" cy="0" r="150" fill="url(#arcanists)" stroke="black" />
+  <!-- Text on upper halfcircle text (clockwise) -->
+  <text class="upper" dy="-8">
+  <textPath id="svg_upper_text" xlink:href="#upper_path" startOffset="50%">
+  SCHEME MARKER
+  </textPath>
+  </text>
+  <!-- Text on lower halfcircle text (counter-clockwise) -->
+  <text class="lower" dy="-8">
+  <textPath id="svg_lower_text" xlink:href="#lower_path" startOffset="50%">
+  SCHEME MARKER
+  </textPath>
+  </text>
+  <!-- Inner circle and image -->
+  <text x="0" y="0" style="font-size:24px;text-anchor:middle;">[Image goes here]</text>
+  <circle cx="0" cy="0" r="120" fill="url(#marker_image)" stroke="black" />
+
+</g>
+
+<defs>
+<radialGradient id="guild" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#b62b25" />
+  <stop offset="90%" stop-color="#DDAAAA" />
+  <stop offset="100%" stop-color="#b62b25" />
+</radialGradient>
+<radialGradient id="resurrectionists" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#668844" />
+  <stop offset="90%" stop-color="#AACCAA" />
+  <stop offset="100%" stop-color="#668844" />
+</radialGradient>
+<radialGradient id="arcanists" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#4444AA" />
+  <stop offset="90%" stop-color="#CCCCFF" />
+  <stop offset="100%" stop-color="#4444AA" />
+</radialGradient>
+<radialGradient id="neverborn" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#884488" />
+  <stop offset="90%" stop-color="#FFDDFF" />
+  <stop offset="100%" stop-color="#884488" />
+</radialGradient>
+<radialGradient id="outcasts" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#998800" />
+  <stop offset="90%" stop-color="#FFEE88" />
+  <stop offset="100%" stop-color="#998800" />
+</radialGradient>
+<radialGradient id="ten_thunders" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#886600" />
+  <stop offset="90%" stop-color="#DDCC88" />
+  <stop offset="100%" stop-color="#886600" />
+</radialGradient>
+<radialGradient id="gremlins" gradientUnits="objectBoundingBox"
+                cx=".5" cy=".5" r=".5" fx=".5" fy=".5">
+  <stop offset="80%" stop-color="#ffffff" />
+  <stop offset="80%" stop-color="#664433" />
+  <stop offset="90%" stop-color="#BBAA88" />
+  <stop offset="100%" stop-color="#664433" />
+</radialGradient>
+<pattern id="marker_image"
+         patternUnits="objectBoundingBox"
+         patternContentUnits="objectBoundingBox"
+         width="1" height="1" >
+  <image id="svg_image" width="1" height="1" xlink:href="" />
+</pattern>
+</defs>
+
+</svg>
+</div>
+
+<div style="display:inline-block;">
+Preview of full sheet:<br />
+<img id="page" border="1" />
+</div>
+
+<script>
+// Default image:
+window.image_url = "";
+// Template for building the svg file:
+var HEAD_TEMPLATE =
+'<?xml version="1.0" standalone="no"?>\n\
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"\n\
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n\
+<svg id="svg_display"\n\
+     width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 1900 2700"\n\
+     xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
+     xmlns:xlink="http://www.w3.org/1999/xlink">\n\
+<title>Malifaux Markers</title>\n\
+\n\
+<style>\n\
+text {\n\
+	font-family: serif;\n\
+	font-size: 24px;\n\
+	font-weight: bold;\n\
+	text-anchor: middle;\n\
+}\n\
+text.upper {\n\
+}\n\
+text.lower {\n\
+	letter-spacing: 0.15em;\n\
+}\n\
+</style>\n\
+';
+var MARKER_TEMPLATE =
+'<circle cx="0" cy="0" r="150" fill="url(#{RIM_GRADIENT})" stroke="black" />\n\
+<text class="upper" dy="-8">\n\
+<textPath xlink:href="#upper_path" startOffset="50%">\n\
+{UPPER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<text class="lower" dy="-8">\n\
+<textPath xlink:href="#lower_path" startOffset="50%">\n\
+{LOWER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<text x="0" y="0" style="font-size:24px;text-anchor:middle;">[Image goes here]</text>\n\
+<circle cx="0" cy="0" r="120" fill="url(#{IMAGE_ID})" stroke="black" />\n\
+';
+var TAIL_TEMPLATE =
+'<defs>\n\
+<path id="upper_path" fill="none" stroke="none" d="M-150,0 m30,0 a120,120 0 0 1 240,0" />\n\
+<path id="lower_path" fill="none" stroke="none" d="M-150,0 a150,150 0 0 0 300,0" />\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="guild">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#b62b25" />\n\
+  <stop offset="90%" stop-color="#DDAAAA" />\n\
+  <stop offset="100%" stop-color="#b62b25" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="resurrectionists">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#668844" />\n\
+  <stop offset="90%" stop-color="#AACCAA" />\n\
+  <stop offset="100%" stop-color="#668844" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="arcanists">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#4444AA" />\n\
+  <stop offset="90%" stop-color="#CCCCFF" />\n\
+  <stop offset="100%" stop-color="#4444AA" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="neverborn">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#884488" />\n\
+  <stop offset="90%" stop-color="#FFDDFF" />\n\
+  <stop offset="100%" stop-color="#884488" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="outcasts">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#998800" />\n\
+  <stop offset="90%" stop-color="#FFEE88" />\n\
+  <stop offset="100%" stop-color="#998800" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="ten_thunders">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#886600" />\n\
+  <stop offset="90%" stop-color="#DDCC88" />\n\
+  <stop offset="100%" stop-color="#886600" />\n\
+</radialGradient>\n\
+<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="gremlins">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="#664433" />\n\
+  <stop offset="90%" stop-color="#BBAA88" />\n\
+  <stop offset="100%" stop-color="#664433" />\n\
+</radialGradient>\n\
+{IMAGES}\n\
+</defs>\n\
+</svg>\n\
+';
+var IMAGE_TEMPLATE =
+'<pattern patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox" width="1" height="1" id="{IMAGE_ID}">\n\
+  <image width="1" height="1" xlink:href="{IMAGE_URL}" />\n\
+</pattern>\n\
+';
+</script>
+
+</body>
+</html>

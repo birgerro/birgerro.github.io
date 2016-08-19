@@ -1,0 +1,371 @@
+<html>
+<!-- Version 5.1 (for IE) -->
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Marker generator for Malifaux2E</title>
+</head>
+<body onload="initialize()">
+
+<div style="display:inline-block;vertical-align:top;">
+<form id="input_form" onchange="update_gui()">
+<label>Upper text: <input type="string" id="upper_text_input" value="SCHEME MARKER" /></label>
+<br />
+
+<label>Lower text: <input type="string" id="lower_text_input" value="SCHEME MARKER" /></label>
+<br />
+
+<label>Faction: <select id="faction_input" onchange="faction_changed(this.value)">
+  <option value="guild,#b62b25">Guild</option>
+  <option value="resurrectionists,#668844">Resurrectionists</option>
+  <option value="arcanists,#4444aa">Arcanists</option>
+  <option value="neverborn,#884488">Neverborn</option>
+  <option value="outcasts,#998800">Outcasts</option>
+  <option value="ten_thunders,#886600">Ten Thunders</option>
+  <option value="gremlins,#664433">Gremlins</option>
+  <option value="custom">Custom colors</option>
+</select></label>
+<br />
+
+<label for="color">Border color: </label><input type="color" id="color" disabled="" />
+<br />
+
+Border type:
+<label><input type="radio" name="border_type" onclick="type_changed(this.value)" value="rounded" checked="" />Rounded</label>
+<label><input type="radio" name="border_type" onclick="type_changed(this.value)" value="flat" />Flat</label>
+<br />
+
+<label>Image file: <input type="file" id="file_input" onchange="load_image()" /></label>
+<br />
+
+Image placement:<br />
+<label>Zoom level: <input type="range" id="zoom_level" min="1.0" max="3.0" step="0.1" value="1.0" oninput="zoom_level_changed()" /></label>
+<br />
+<label>Horizontal position: <input type="range" id="delta_x" min="0.0" max="1.0" step="0.05" value="1.0" oninput="delta_x_changed()" /></label>
+<br />
+<label>Vertical position: <input type="range" id="delta_y" min="0.0" max="1.0" step="0.05" value="1.0" oninput="delta_y_changed()" /></label>
+<br />
+</form>
+
+<button onclick="add_marker()">Add to sheet</button>
+<button onclick="open_svg()">Open full sheet</button>
+
+<p id="message_field" style="color:red;">
+</p>
+</div>
+
+<div style="display:inline-block;vertical-align:top;padding-right:50px;text-align:center;">
+Current marker:<br>
+<img id="current_marker" src="">
+<img id="hidden_image" src="" style="display:none" />
+</div>
+
+<div style="display:inline-block;">
+Preview of full sheet:<br>
+<img id="current_sheet" border="1" src="">
+<br />
+<span id="current_size" />
+</div>
+
+<script>
+// First add replaceAll to strings:
+String.prototype.replaceAll = function(search, replacement) {
+    var target = this;
+    return target.split(search).join(replacement);
+}
+function initialize(){
+   faction_changed(document.getElementById("faction_input").value);
+   update_gui();
+}
+function update_gui(){
+   update_image_numbers();
+   document.getElementById("current_marker").setAttribute("src","data:image/svg+xml;charset=UTF-8,"+escape(make_single_xml()));
+   sheet_xml = "data:image/svg+xml;charset=UTF-8,"+escape(make_sheet_xml(2*190,2*270));
+   document.getElementById("current_sheet").setAttribute("src",sheet_xml);
+   update_size(sheet_xml.length);
+//   display_debug();
+}
+//a_counter = 0;
+//function display_debug(){
+//   a_counter += 1;
+//   display_message("Counter value: " + a_counter + "<br />"
+//                  +"window.image_unit: " + window.image_unit + "<br />"
+//                  +"window.delta_x: "    + window.delta_x    + "<br />"
+//                  +"window.delta_y: "    + window.delta_y    + "<br />"
+//                  +"window.base_zoom: "  + window.base_zoom  + "<br />"
+//                  +"window.zoom_level: " + window.zoom_level + "<br />"
+//   );
+//}
+function update_size(size){
+   if (size < 1024*1024){
+      message = "Current size: " + (size/1024).toFixed(2) + " kB";
+   } else {
+      message = "Current size: " + (size/(1024*1024)).toFixed(2) + " MB";
+   }
+   document.getElementById("current_size").innerHTML = message;
+}
+function faction_changed(new_faction){
+   if (new_faction == "custom"){
+      document.getElementById("color").disabled = false;
+      window.border_colors = new_faction;
+   } else {
+      document.getElementById("color").disabled = true;
+      var values = new_faction.split(',');
+      window.border_colors = values[0];
+      document.getElementById("color").value = values[1];
+   }
+   update_gui();
+}
+function type_changed(new_type){
+   if (window.border_type == new_type){
+      return; // no change
+   }
+   window.border_type = new_type;
+   update_gui();
+}
+function load_image(){
+   var file = document.getElementById("file_input").files[0];
+   if (file){
+      var reader = new FileReader();
+      reader.onload = function(event){
+         window.image_url = event.target.result;
+         hidden_image = document.getElementById("hidden_image");
+         hidden_image.src = window.image_url;
+         update_gui();
+      }
+      reader.readAsDataURL(file);
+      reset_image_placement();
+   }
+}
+function update_image_numbers(){
+   // Internet Explorer had a race condition in load_image(), so do this every update_gui() instead:
+   hidden_image = document.getElementById("hidden_image");
+   window.image_width = hidden_image.naturalWidth;
+   window.image_height = hidden_image.naturalHeight;
+   window.image_unit = Math.min(window.image_width,window.image_height);
+   window.base_zoom = Math.max(window.image_width,window.image_height)/window.image_unit;
+   window.zoom_level = Number(document.getElementById("zoom_level").value);
+   x_min = window.zoom_level*window.image_width/window.image_unit - 1;
+	window.delta_x = ((Number(document.getElementById("delta_x").value) - 1) * x_min).toFixed(2);
+   y_min = window.zoom_level*window.image_height/window.image_unit - 1;
+	window.delta_y = ((Number(document.getElementById("delta_y").value) - 1) * y_min).toFixed(2);
+}
+function zoom_level_changed(){
+	window.zoom_level = Number(document.getElementById("zoom_level").value);
+	update_gui();
+}
+function delta_x_changed(){
+	x_min = window.zoom_level*window.image_width/window.image_unit - 1;
+	window.delta_x = ((Number(document.getElementById("delta_x").value) - 1) * x_min).toFixed(2);
+	update_gui();
+}
+function delta_y_changed(){
+	y_min = window.zoom_level*window.image_height/window.image_unit - 1;
+	window.delta_y = ((Number(document.getElementById("delta_y").value) - 1) * y_min).toFixed(2);
+	update_gui();
+}
+function reset_image_placement(){
+   document.getElementById("zoom_level").value = 1;
+   document.getElementById("delta_x").value = 1;
+   document.getElementById("delta_y").value = 1;
+   window.zoom_level = 1;
+   window.delta_x = 0;
+   window.delta_y = 0;
+}
+function make_light_color(color){
+   var intcolor = parseInt(color.slice(1),16);
+   var r = (intcolor >> 16) & 255;
+   var g = (intcolor >> 8) & 255;
+   var b = intcolor & 255;
+   var t = 0.75;
+   r = Math.round( t*255 + (1-t)*r );
+   g = Math.round( t*255 + (1-t)*g );
+   b = Math.round( t*255 + (1-t)*b );
+   return '#' + ( (1<<24) + (r<<16) + (g<<8) + b ).toString(16).slice(1);
+}
+function make_border_id(){
+   var border_id = window.border_colors;
+   if (window.border_type == "flat"){
+      border_id += "_flat";
+   }
+   if (window.border_colors == "custom"){
+      border_id += document.getElementById("color").value.replace('#','_');
+   }
+   return border_id;
+}
+function make_marker(image_id){
+   var border_id = make_border_id();
+   var upper_text = document.getElementById("upper_text_input").value;
+   var lower_text = document.getElementById("lower_text_input").value;
+   if (window.border_type == "flat"){
+      var text_color = make_light_color(document.getElementById("color").value);
+   } else {
+      var text_color = "#000000";
+   }
+   var marker = MARKER_TEMPLATE.replaceAll("{UPPER_TEXT}",upper_text).replaceAll("{LOWER_TEXT}",lower_text);
+   marker = marker.replaceAll("{TEXT_COLOR}",text_color);
+   marker = marker.replaceAll("{BORDER_ID}",border_id).replaceAll("{IMAGE_ID}",image_id);
+   return marker;
+}
+function make_border(){
+   var border_id = make_border_id();
+   var dark_color = document.getElementById("color").value;
+   var light_color = make_light_color(dark_color);
+   if (window.border_type == "rounded"){
+      var border = ROUNDED_BORDER_TEMPLATE.replaceAll("{BORDER_ID}",border_id);
+   } else {
+      var border = FLAT_BORDER_TEMPLATE.replaceAll("{BORDER_ID}",border_id);
+   }
+   border = border.replaceAll("{DARK_COLOR}",dark_color).replaceAll("{LIGHT_COLOR}",light_color);
+   return border;
+}
+function make_image_id(filename){
+   var image_id = filename.replace(/[^a-zA-Z0-9_]/g,'_');
+   var zoom = (window.base_zoom * window.zoom_level).toFixed(2);
+   image_id += "_" + Math.round(100*zoom) + "_" + Math.round(-100*window.delta_x) + "_" + Math.round(-100*window.delta_y);
+   return image_id;
+}
+var marker_list = [];
+var borders     = "";
+var border_ids  = [];
+var images      = "";
+var image_ids   = [];
+function add_marker(){
+   if (marker_list.length >= 35){
+      display_message("Buffer full.<br />Open full sheet, then reload page to empty buffer.");
+      return;
+   }
+   if (document.getElementById("file_input").files[0]){
+      var image_id = make_image_id(document.getElementById("file_input").files[0].name);
+   } else {
+      var image_id = "default_image";
+   }
+   marker_list.push(make_marker(image_id));
+   var border_id = make_border_id();
+   if (border_ids.indexOf(border_id) == -1){
+      borders += make_border();
+      border_ids.push(border_id);
+   }
+   if (image_ids.indexOf(image_id) == -1){
+      var zoom = (window.base_zoom * window.zoom_level).toFixed(2);
+      var image = IMAGE_TEMPLATE.replaceAll("{IMAGE_ID}",image_id).replaceAll("{IMAGE_URL}",window.image_url)
+                                .replaceAll("{ZOOM}",zoom).replaceAll("{DELTA_X}",window.delta_x).replaceAll("{DELTA_Y}",window.delta_y);
+      images += image;
+      image_ids.push(image_id);
+   }
+   update_gui();
+}
+function make_single_xml(){
+   var result = HEAD_TEMPLATE.replaceAll("{WIDTH}","35mm").replaceAll("{HEIGHT}","35mm").replaceAll("{VIEWBOX}","0 0 350 350");
+   var marker = make_marker("current_image");
+   if (window.image_url == ""){
+      marker += NO_IMAGE_TEXT;
+   }
+   result += '<g transform="translate(175,175)">\n' + marker + '</g>\n';
+   var border_id = make_border_id();
+   var border = make_border();
+   var zoom = (window.base_zoom * window.zoom_level).toFixed(2);
+   var image = IMAGE_TEMPLATE.replaceAll("{IMAGE_ID}","current_image").replaceAll("{IMAGE_URL}",window.image_url)
+                             .replaceAll("{ZOOM}",zoom).replaceAll("{DELTA_X}",window.delta_x).replaceAll("{DELTA_Y}",window.delta_y);
+   result += TAIL_TEMPLATE.replaceAll("{BORDERS}",border).replaceAll("{IMAGES}",image);
+   return result;
+}
+function make_sheet_xml(width, height){
+   var result = HEAD_TEMPLATE.replaceAll("{WIDTH}",width).replaceAll("{HEIGHT}",height).replaceAll("{VIEWBOX}","0 0 1900 2700");
+   for (i = 0; i < marker_list.length; i++){
+      var marker = marker_list[i];
+      var row = Math.floor(i/5);
+      var col = i % 5;
+      result += '<g transform="translate(' + (250+350*col) + ',' + (250+350*row) + ')">\n' + marker + '</g>\n';
+   }
+   result += TAIL_TEMPLATE.replaceAll("{BORDERS}",borders).replaceAll("{IMAGES}",images);
+   return result;
+}
+function open_svg(){
+   var new_window = window.open();
+   new_window.document.open('image/svg+xml;charset=UTF-8');
+   new_window.document.write(make_sheet_xml("190mm","270mm"));
+   new_window.document.close();
+}
+function display_message(message){
+   document.getElementById("message_field").innerHTML = message;
+}
+// Default values:
+window.border_colors = "guild";
+window.border_type = "rounded";
+window.image_url = "";
+window.image_height = 0;
+window.image_width = 0;
+window.image_unit = 1;
+window.delta_x = 0;
+window.delta_y = 0;
+window.base_zoom = 1;
+window.zoom_level = 1;
+// Template for building the svg file:
+var HEAD_TEMPLATE =
+'<?xml version="1.0" standalone="no"?>\n\
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n\
+<svg id="svg_display"\n\
+     width="{WIDTH}" height="{HEIGHT}" viewBox="{VIEWBOX}"\n\
+     xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
+     xmlns:xlink="http://www.w3.org/1999/xlink">\n\
+<title>Malifaux Markers</title>\n\
+\n\
+<style>\n\
+text {\n\
+	font-family: serif;\n\
+	font-size: 24px;\n\
+	font-weight: bold;\n\
+	text-anchor: middle;\n\
+}\n\
+text.upper {\n\
+}\n\
+text.lower {\n\
+	letter-spacing: 0.15em;\n\
+}\n\
+</style>\n';
+var MARKER_TEMPLATE =
+'<circle cx="0" cy="0" r="150" fill="url(#{BORDER_ID})" stroke="black" />\n\
+<text class="upper" dy="-8" fill="{TEXT_COLOR}">\n\
+<textPath xlink:href="#upper_path" startOffset="50%">\n\
+{UPPER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<text class="lower" dy="-6" fill="{TEXT_COLOR}">\n\
+<textPath xlink:href="#lower_path" startOffset="50%">\n\
+{LOWER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<circle cx="0" cy="0" r="120" fill="url(#{IMAGE_ID})" stroke="black" stroke-width="3" />\n';
+var NO_IMAGE_TEXT =
+'<text x="0" y="0" style="font-size:16pt;text-anchor:middle;">[Image goes here]</text>\n';
+var TAIL_TEMPLATE =
+'<defs>\n\
+<path id="upper_path" fill="none" stroke="none" d="M-150,0 m30,0 a120,120 0 0 1 240,0" />\n\
+<path id="lower_path" fill="none" stroke="none" d="M-150,0 a150,150 0 0 0 300,0" />\n\
+{BORDERS}\
+{IMAGES}\
+</defs>\n\
+</svg>\n';
+var ROUNDED_BORDER_TEMPLATE =
+'<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="{BORDER_ID}">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="{DARK_COLOR}" />\n\
+  <stop offset="90%" stop-color="{LIGHT_COLOR}" />\n\
+  <stop offset="100%" stop-color="{DARK_COLOR}" />\n\
+</radialGradient>\n';
+var FLAT_BORDER_TEMPLATE =
+'<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="{BORDER_ID}">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="{LIGHT_COLOR}" />\n\
+  <stop offset="83%" stop-color="{LIGHT_COLOR}" />\n\
+  <stop offset="83%" stop-color="{DARK_COLOR}" />\n\
+</radialGradient>\n';
+var IMAGE_TEMPLATE =
+'<pattern patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox" width="1" height="1" id="{IMAGE_ID}">\n\
+  <rect width="1" height="1" fill="white" />\n\
+  <image width="1" height="1" transform="translate({DELTA_X} {DELTA_Y}) scale({ZOOM})" preserveAspectRatio="xMinYMin" xlink:href="{IMAGE_URL}" />\n\
+</pattern>\n';
+</script>
+
+</body>
+</html>

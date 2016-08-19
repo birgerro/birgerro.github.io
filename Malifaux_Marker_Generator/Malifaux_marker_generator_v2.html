@@ -1,0 +1,278 @@
+<html>
+<!-- Version 2 -->
+<head>
+  <title>Marker generator for Malifaux2E</title>
+</head>
+<body onload="initialize()">
+
+<div style="display:inline-block;vertical-align:top;">
+<form id="input_form" onchange="update_gui()">
+Upper text:
+<input type="string" id="upper_text_input" value="SCHEME MARKER" />
+<br />
+
+Lower text:
+<input type="string" id="lower_text_input" value="SCHEME MARKER" />
+<br />
+
+<label for="text_color">Text color: </label><input type="color" id="text_color" />
+<br />
+
+Faction:
+<select id="faction_input" onchange="faction_changed(this.value)">
+  <option value="guild,#b62b25,#ddaaaa">Guild</option>
+  <option value="resurrectionists,#668844,#aaccaa">Resurrectionists</option>
+  <option value="arcanists,#4444aa,#ccccff">Arcanists</option>
+  <option value="neverborn,#884488,#ffddff">Neverborn</option>
+  <option value="outcasts,#998800,#ffee88">Outcasts</option>
+  <option value="ten_thunders,#886600,#ddcc88">Ten Thunders</option>
+  <option value="gremlins,#664433,#bbaa88">Gremlins</option>
+  <option value="custom">Custom colors</option>
+</select>
+<br />
+
+<span id="color_1_entry"><label for="color_1">Border color: </label><input type="color" id="color_1" disabled /></span>
+&nbsp;&nbsp;&nbsp;
+<span id="color_2_entry"><label for="color_2">Highlight: </label><input type="color" id="color_2" disabled /></span>
+<br />
+
+Border type:
+<label><input type="radio" name="border_type" onclick="type_changed(this.value)" value="rounded" checked />Rounded</label>
+<label><input type="radio" name="border_type" onclick="type_changed(this.value)" value="flat" />Flat</label>
+<br />
+
+Image file:
+<input type="file" id="file_input" onchange="load_image()" />
+<br />
+</form>
+
+<button onclick="add_marker()">Add to sheet</button>
+<button onclick="open_svg()">Open full sheet</button>
+
+<p id="message_field" style="color:red;" />
+</div>
+
+<div style="display:inline-block;vertical-align:top;padding-right:50px;">
+Current marker:<br />
+<img id="current_marker" />
+</div>
+
+<div style="display:inline-block;">
+Preview of full sheet:<br />
+<img id="current_sheet" border="1" />
+</div>
+
+<script>
+function initialize(){
+   faction_changed(document.getElementById("faction_input").value);
+   update_gui();
+}
+function update_gui(){
+   document.getElementById("current_marker").setAttribute("src","data:image/svg+xml;charset=UTF-8,"+escape(make_single_xml()));
+   document.getElementById("current_sheet").setAttribute("src","data:image/svg+xml;charset=UTF-8,"+escape(make_sheet_xml(2*190,2*270)));
+}
+function faction_changed(new_faction){
+   if (new_faction == "custom"){
+      document.getElementById("color_1").disabled = false;
+      document.getElementById("color_2").disabled = false;
+      window.border_colors = new_faction;
+   } else {
+      document.getElementById("color_1").disabled = true;
+      document.getElementById("color_2").disabled = true;
+      var values = new_faction.split(',');
+      window.border_colors = values[0];
+      document.getElementById("color_1").value = values[1];
+      document.getElementById("color_2").value = values[2];
+   }
+   update_gui();
+}
+function type_changed(new_type){
+   if (window.border_type == new_type){
+      return; // no change
+   }
+   window.border_type = new_type;
+   if (window.border_type == "rounded"){
+      document.getElementById("text_color").value = "#000000";
+      document.getElementById("color_2_entry").style.visibility="visible";
+   } else {
+      document.getElementById("text_color").value = "#ffffff";
+      document.getElementById("color_2_entry").style.visibility="hidden";
+   }
+   update_gui();
+}
+function load_image(){
+   var file = document.getElementById("file_input").files[0];
+   if (file){
+      var reader = new FileReader();
+      reader.onload = function(event){
+         window.image_url = event.target.result;
+         update_gui();
+      }
+      reader.readAsDataURL(file);
+   }
+}
+function make_border_id(){
+   var border_id = window.border_colors;
+   if (window.border_type == "flat"){
+      border_id += "_flat";
+   }
+   if (window.border_colors == "custom"){
+      border_id += document.getElementById("color_1").value.replace('#','_');
+      if (window.border_type == "rounded"){
+         border_id += document.getElementById("color_2").value.replace('#','_');
+      }
+   }
+   return border_id;
+}
+function make_marker(image_id){
+   var border_id = make_border_id();
+   var upper_text = document.getElementById("upper_text_input").value;
+   var lower_text = document.getElementById("lower_text_input").value;
+   var text_color = document.getElementById("text_color").value;
+   var marker = MARKER_TEMPLATE.replace("{UPPER_TEXT}",upper_text).replace("{LOWER_TEXT}",lower_text);
+   marker = marker.replace("{TEXT_COLOR}",text_color).replace("{TEXT_COLOR}",text_color);
+   marker = marker.replace("{BORDER_ID}",border_id).replace("{IMAGE_ID}",image_id);
+   return marker;
+}
+function make_border(){
+   var border_id = make_border_id();
+   var color_1 = document.getElementById("color_1").value;
+   var color_2 = document.getElementById("color_2").value;
+   if (window.border_type == "rounded"){
+      var border = ROUNDED_BORDER_TEMPLATE.replace("{BORDER_ID}",border_id);
+      border = border.replace("{DARK_COLOR}",color_1).replace("{LIGHT_COLOR}",color_2).replace("{DARK_COLOR}",color_1);
+   } else {
+      var border = FLAT_BORDER_TEMPLATE.replace("{BORDER_ID}",border_id);
+      border = border.replace("{COLOR}",color_1);
+   }
+   return border;
+}
+var marker_list = [];
+var borders     = "";
+var border_ids  = [];
+var images      = "";
+var image_ids   = [];
+function add_marker(){
+   if (marker_list.length >= 35){
+      display_message("Buffer full.<br />Open full sheet, then reload page to empty buffer.");
+      return;
+   }
+   if (document.getElementById("file_input").files[0]){
+      var image_id = document.getElementById("file_input").files[0].name.replace(" ","_").replace(".","_");
+   } else {
+      var image_id = "default_image";
+   }
+   marker_list.push(make_marker(image_id));
+   var border_id = make_border_id();
+   if (border_ids.indexOf(border_id) == -1){
+      borders += make_border();
+      border_ids.push(border_id);
+   }
+   if (image_ids.indexOf(image_id) == -1){
+      var image = IMAGE_TEMPLATE.replace("{IMAGE_ID}",image_id).replace("{IMAGE_URL}",window.image_url);
+      images += image;
+      image_ids.push(image_id);
+   }
+   update_gui();
+}
+function make_single_xml(){
+   var result = HEAD_TEMPLATE.replace("{WIDTH}","35mm").replace("{HEIGHT}","35mm").replace("{VIEWBOX}","0 0 350 350");
+   var marker = make_marker("current_image");
+   if (window.image_url == ""){
+      marker += NO_IMAGE_TEXT;
+   }
+   result += '<g transform="translate(175,175)">\n' + marker + '</g>\n';
+   var border_id = make_border_id();
+   var image = IMAGE_TEMPLATE.replace("{IMAGE_ID}","current_image").replace("{IMAGE_URL}",window.image_url);
+   var border = make_border();
+   result += TAIL_TEMPLATE.replace("{BORDERS}",border).replace("{IMAGES}",image);
+   return result;
+}
+function make_sheet_xml(width, height){
+   var result = HEAD_TEMPLATE.replace("{WIDTH}",width).replace("{HEIGHT}",height).replace("{VIEWBOX}","0 0 1900 2700");
+   for (i = 0; i < marker_list.length; i++){
+      var marker = marker_list[i];
+      var row = Math.floor(i/5);
+      var col = i % 5;
+      result += '<g transform="translate(' + (250+350*col) + ',' + (250+350*row) + ')">\n' + marker + '</g>\n';
+   }
+   result += TAIL_TEMPLATE.replace("{BORDERS}",borders).replace("{IMAGES}",images);
+   return result;
+}
+function open_svg(){
+   window.open("data:image/svg+xml;charset=UTF-8,"+escape(make_sheet_xml("190mm","270mm")));
+}
+function display_message(message){
+   document.getElementById("message_field").innerHTML = message;
+}
+// Default values:
+window.border_colors = "guild";
+window.border_type = "rounded";
+window.image_url = "";
+// Template for building the svg file:
+var HEAD_TEMPLATE =
+'<?xml version="1.0" standalone="no"?>\n\
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n\
+<svg id="svg_display"\n\
+     width="{WIDTH}" height="{HEIGHT}" viewBox="{VIEWBOX}"\n\
+     xmlns="http://www.w3.org/2000/svg" version="1.1"\n\
+     xmlns:xlink="http://www.w3.org/1999/xlink">\n\
+<title>Malifaux Markers</title>\n\
+\n\
+<style>\n\
+text {\n\
+	font-family: serif;\n\
+	font-size: 24px;\n\
+	font-weight: bold;\n\
+	text-anchor: middle;\n\
+}\n\
+text.upper {\n\
+}\n\
+text.lower {\n\
+	letter-spacing: 0.15em;\n\
+}\n\
+</style>\n';
+var MARKER_TEMPLATE =
+'<circle cx="0" cy="0" r="150" fill="url(#{BORDER_ID})" stroke="black" />\n\
+<text class="upper" dy="-8" fill="{TEXT_COLOR}">\n\
+<textPath xlink:href="#upper_path" startOffset="50%">\n\
+{UPPER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<text class="lower" dy="-8" fill="{TEXT_COLOR}">\n\
+<textPath xlink:href="#lower_path" startOffset="50%">\n\
+{LOWER_TEXT}\n\
+</textPath>\n\
+</text>\n\
+<circle cx="0" cy="0" r="120" fill="url(#{IMAGE_ID})" stroke="black" />\n';
+var NO_IMAGE_TEXT =
+'<text x="0" y="0" style="font-size:16pt;text-anchor:middle;">[Image goes here]</text>\n';
+var TAIL_TEMPLATE =
+'<defs>\n\
+<path id="upper_path" fill="none" stroke="none" d="M-150,0 m30,0 a120,120 0 0 1 240,0" />\n\
+<path id="lower_path" fill="none" stroke="none" d="M-150,0 a150,150 0 0 0 300,0" />\n\
+{BORDERS}\
+{IMAGES}\
+</defs>\n\
+</svg>\n';
+var ROUNDED_BORDER_TEMPLATE =
+'<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="{BORDER_ID}">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="{DARK_COLOR}" />\n\
+  <stop offset="90%" stop-color="{LIGHT_COLOR}" />\n\
+  <stop offset="100%" stop-color="{DARK_COLOR}" />\n\
+</radialGradient>\n';
+var FLAT_BORDER_TEMPLATE =
+'<radialGradient gradientUnits="objectBoundingBox" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" id="{BORDER_ID}">\n\
+  <stop offset="80%" stop-color="#ffffff" />\n\
+  <stop offset="80%" stop-color="{COLOR}" />\n\
+</radialGradient>\n';
+var IMAGE_TEMPLATE =
+'<pattern patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox" width="1" height="1" id="{IMAGE_ID}">\n\
+  <rect width="1" height="1" fill="white" />\n\
+  <image width="1" height="1" xlink:href="{IMAGE_URL}" />\n\
+</pattern>\n';
+</script>
+
+</body>
+</html>
