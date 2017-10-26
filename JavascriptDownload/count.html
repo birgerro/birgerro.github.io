@@ -1,0 +1,37 @@
+<html>
+<body>
+
+<p>Click the button to start (or stop) counting.</p>
+
+<button onclick="button_1_pressed()">Start counting</button>
+<button onclick="button_2_pressed()">Stop counting</button>
+
+<p>Count since last button press: <span id="count_field" style="color:red;" /></p>
+
+<script>
+var stop_counting = false;
+var count = 0;
+
+function button_1_pressed() {
+	stop_counting = false;
+	count = -1;
+	update_count();
+}
+
+function button_2_pressed() {
+	stop_counting = true;
+}
+
+function update_count() {
+	if (stop_counting) {
+		return;
+	}
+	count += 1;
+	document.getElementById("count_field").innerHTML = count;
+	setTimeout(update_count, 1000);
+}
+
+</script>
+
+</body>
+</html>
