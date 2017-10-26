@@ -1,0 +1,30 @@
+<html>
+<body>
+
+<p>Click the button to download file after 3 seconds.</p>
+
+<button onclick="button_pressed()">Click Me!</button>
+
+<p id="message_field" style="color:red;" />
+
+<script>
+function button_pressed() {
+	setTimeout(start_download, 3000);
+}
+
+function start_download() {
+	var client = new XMLHttpRequest();
+	client.open("GET", "/temp/my-file.txt");
+	client.onreadystatechange = function() {
+		display_file(client.responseText);
+	}
+	client.send();
+}
+
+function display_file(text) {
+	document.getElementById("message_field").innerHTML = text;
+}
+</script>
+
+</body>
+</html>
