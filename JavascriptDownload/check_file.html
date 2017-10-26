@@ -14,7 +14,7 @@ function button_pressed() {
 
 function start_download() {
 	var client = new XMLHttpRequest();
-	client.open("GET", "/temp/my-file.txt");
+	client.open("GET", "https://birgerro.github.io/JavascriptDownload/my-file.txt");
 	client.onreadystatechange = function() {
 		display_file(client.responseText);
 	}
