@@ -1,2 +1,4 @@
 Dette er en test...<br/>
-... med flere linjer
+... med<br/>
+enda<br/>
+flere linjer
