@@ -1,2 +1,2 @@
-Dette er en test...
+Dette er en test...<br/>
 ... med flere linjer
