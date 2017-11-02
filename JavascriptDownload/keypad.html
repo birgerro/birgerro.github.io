@@ -47,6 +47,7 @@ function check_result_and_wait(client) {
 		return; // wait for download to finish
 	}
 	display_text("Current text: " + client.responseText);
+	display_text("Current (again) text: " + client.responseText);
 	if (client.responseText == "reload") {
 		display_text("Reloading...");
 		window.location.reload();
