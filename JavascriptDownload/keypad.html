@@ -50,7 +50,7 @@ function check_result_and_wait(client) {
 		display_text("Reloading...");
 //		window.location.href = "keypad.html";
 		display_text("Reloading to " + window.location.href.split('?')[0]);
-//		window.location = window.location.href.split('?')[0];
+		window.location = window.location.href.split('?')[0];
 	} else {
 		count += 1;
 		display_text("Still waiting ("+count+')');
