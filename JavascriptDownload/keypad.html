@@ -48,6 +48,8 @@ function check_result_and_wait(client) {
 	}
 	display_text("Current text: " + client.responseText);
 	if (client.responseText == "reload") {
+		display_text("Reloading...");
+		window.location.reload();
 		window.location.href = "keypad.html";
 	} else {
 		count += 1;
