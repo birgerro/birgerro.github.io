@@ -46,8 +46,8 @@ function check_result_and_wait(client) {
 	if (client.readyState != 4) {
 		return; // wait for download to finish
 	}
-	display_text("Current text: '" + client.responseText + "'");
-	if (client.responseText == "reload") {
+	display_text("Current text: '" + client.responseText.trim() + "'");
+	if (client.responseText.trim() == "reload") {
 		display_text("Reloading...");
 		window.location.reload();
 		window.location.href = "keypad.html";
