@@ -48,7 +48,7 @@ function check_result_and_wait(client) {
 	}
 	if (client.responseText.trim() == "reload") {
 		display_text("Reloading...");
-		window.location.reload();
+		window.location.href = "keypad.html";
 	} else {
 		count += 1;
 		display_text("Still waiting ("+count+')');
