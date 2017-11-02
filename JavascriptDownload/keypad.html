@@ -27,9 +27,10 @@ function run_after_load() {
   }
 	start_download();
 }
+file_to_check = "reload_or_wait.txt";
 function start_download() {
 	var client = new XMLHttpRequest();
-	client.open("GET", "reload_or_wait.txt?" + new Date().getTime());
+	client.open("GET", file_to_check + '?' + new Date().getTime());
 	client.onreadystatechange = function() {
 		check_result_and_wait(client);
 	}
