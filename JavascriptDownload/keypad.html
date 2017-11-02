@@ -1,0 +1,88 @@
+<html>
+<head>
+<style>
+input {
+	width:145px;
+	height:75px;
+	color:white;
+	font-family:Arial;
+	font-size:55px;
+	text-align:center;
+}
+.green {
+	background-color:green;
+}
+.red {
+	background-color:red;
+}
+</style>
+<script>
+function run_after_load() {
+	button_clicked = window.location.search.split('knapp=')[1];
+	if (typeof button_clicked == 'undefined'){
+    display_text("Before answer");
+	} else {
+    display_text("After answer");
+		document.getElementById(button_clicked).className = "red";
+  }
+	start_download();
+}
+function start_download() {
+	var client = new XMLHttpRequest();
+	client.open("GET", "reload_or_wait.txt?" + new Date().getTime());
+	client.onreadystatechange = function() {
+		check_result_and_wait(client);
+	}
+	client.send();
+}
+var count = 0;
+function check_result_and_wait(client) {
+	if (client.readyState != 4) {
+		return; // wait for download to finish
+	}
+	if (client.responseText == "reload") {
+		window.location.href = "keypad.html";
+	} else {
+		count += 1;
+		display_text("Still waiting ("+count+')');
+		setTimeout(start_download, 5000);
+	}
+}
+function display_text(text) {
+	document.getElementById("message_field").innerHTML = text;
+}
+
+</script>
+</head>
+<body onload="run_after_load();">
+
+
+
+<h1 style="font-size:500%; text-align:center;">WiFiMentoMeter</h1>
+<h2 style="font-size:400%; text-align:center;">Deltager 5:   Birger	    </h1>
+
+<p id="message_field" style="color:red;" />
+
+<form>
+ 
+	&nbsp; &nbsp; 
+	<input type="submit" name="knapp" class="green" id="1" value="1"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="2" value="2"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="3" value="3"> &nbsp;
+	<br> <br>&nbsp; &nbsp; 
+	<input type="submit" name="knapp" class="green" id="4" value="4"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="5" value="5"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="6" value="6"> &nbsp;
+	<br> <br>&nbsp; &nbsp; 
+	<input type="submit" name="knapp" class="green" id="7" value="7"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="8" value="8"> &nbsp;
+	<input type="submit" name="knapp" class="green" id="9" value="9"> &nbsp;
+
+ </form>
+
+
+
+
+</body>
+</html>
+  
