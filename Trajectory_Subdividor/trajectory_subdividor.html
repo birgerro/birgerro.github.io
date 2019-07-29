@@ -1,0 +1,101 @@
+<html>
+<head>
+	<title>Trajectory Subdividor</title>
+</head>
+<body onload="update_canvas()">
+
+<div>
+<form oninput="update_canvas()">
+Number of parts:
+<input type="range" id="num" min="1" max="100" step="1" value="5"
+       oninput="show_num.value=this.value" />
+<output name="show_num">5</output>
+<br />
+Speed at point 1:
+<input type="range" id="speed1" min="500" max="2000" step="50" value="800"
+       oninput="show_speed1.value=this.value" />
+<output name="show_speed1">800</output>
+<br />
+Speed at point 2:
+<input type="range" id="speed2" min="500" max="2000" step="50" value="1000"
+       oninput="show_speed2.value=this.value" />
+<output name="show_speed2">1000</output>
+</form>
+
+<p><span style="white-space: nowrap">Output: <span id="result" /></span></p>
+
+<button onclick="update_canvas()">Recalculate</button>
+<button onclick="clear_canvas()">Clear canvas</button>
+</div>
+
+<canvas id="canvas" width="1000" height="500" />
+
+<script>
+
+var canvas  = document.getElementById("canvas");
+var context = canvas.getContext("2d");
+
+var point1 = [100,100];
+var point2 = [900,400];
+var vector = [point2[0]-point1[0],point2[1]-point1[1]];
+var across = [vector[1]/length(vector),-vector[0]/length(vector)];
+var tick = 10;
+
+
+function calculate_fractions(num,speed1,speed2){
+	var change = (speed2-speed1)/speed1;
+	var fraction = 0;
+	var fractions = [fraction]; // start with only point1 (= 0)
+	for (i=1; i<=num; i++){
+		fraction += ( 1/num + (2*i-1)/(2*num*num)*change ) / ( 1+0.5*change );
+		fractions.push(fraction); // last will be point2 (= 1)
+	}
+	return fractions;
+}
+
+function length(vector){
+	return Math.sqrt(vector[0]*vector[0]+vector[1]*vector[1]);
+}
+
+function draw_line(from,to){
+	context.moveTo(from[0],from[1]);
+	context.lineTo(to[0],to[1]);
+	context.stroke();
+}
+
+function draw_tick(fraction){
+	point = [point1[0]+fraction*vector[0],point1[1]+fraction*vector[1]];
+	context.moveTo(point[0]-tick*across[0],point[1]-tick*across[1]);
+	context.lineTo(point[0]+tick*across[0],point[1]+tick*across[1]);
+	context.stroke();
+}
+
+function output_result(string){
+	document.getElementById("result").innerHTML = string;
+}
+
+function clear_canvas() {
+	context.clearRect(0,0,canvas.width,canvas.height);
+	context.beginPath();
+}
+
+function update_canvas(){
+	clear_canvas();
+
+	var num    = Number(document.getElementById("num").value);
+	var speed1 = Number(document.getElementById("speed1").value);
+	var speed2 = Number(document.getElementById("speed2").value);
+
+	fractions = calculate_fractions(num,speed1,speed2);
+	output_result(fractions.map(function(element){return element.toFixed(2);}));
+
+	draw_line(point1,point2);
+	for (i=0; i<fractions.length; i++){
+		draw_tick(fractions[i]);
+	}
+}
+
+</script>
+
+</body>
+</html>
